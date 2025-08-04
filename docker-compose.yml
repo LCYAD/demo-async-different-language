@@ -1,0 +1,5 @@
+services:
+  api:
+    build: ./nodejs-api
+    ports:
+      - "8080:3000"
