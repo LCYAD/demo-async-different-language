@@ -118,9 +118,11 @@ class DelayController < ApplicationController
   end
 
   # High-performance HTTP client using Typhoeus adapter
+  HTTPBIN_URL = ENV['HTTPBIN_URL'] || 'http://httpbin:80'
+
   def self.http_client
     @http_client ||= Faraday.new(
-      url: 'https://httpbin.org',
+      url: HTTPBIN_URL,
       headers: { 
         'Connection' => 'keep-alive',
         'User-Agent' => 'Rails-API/1.0'
