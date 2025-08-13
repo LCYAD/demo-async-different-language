@@ -37,9 +37,9 @@ gem "thruster", require: false
 
 # Custom gems for API functionality
 gem "faraday"
-gem "faraday-typhoeus"  # Typhoeus adapter for Faraday
-gem "typhoeus"  # High-performance HTTP adapter
 gem "async"     # For async operations
+gem "async-http"  # Async HTTP client
+gem "async-http-faraday"  # Async adapter for Faraday
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

@@ -1,7 +1,8 @@
 # Gracefully handle missing gems
 require 'faraday'
 require 'async'
-require 'faraday/typhoeus'  # Faraday Typhoeus adapter
+require 'async/http'
+require 'async/http/faraday'  # Async HTTP adapter for Faraday
 
 class DelayController < ApplicationController
   before_action :validate_params
@@ -41,20 +42,18 @@ class DelayController < ApplicationController
     Async do |task|
       # Create semaphore for call limiting if specified
       semaphore = @call_limit ? Async::Semaphore.new(@call_limit) : nil
-      
-      Rails.logger.info "Created semaphore with limit: #{@call_limit}" if semaphore
-      Rails.logger.info "About to create #{@num_of_calls} parallel tasks..."
-      
-      # Create all async tasks simultaneously
-      tasks = Array.new(@num_of_calls) do |index|
+
+      # Create promises for all requests
+      promises = Array.new(@num_of_calls) do |index|
         request_number = index + 1
         
-        task.async do
+        # Create a promise for each request
+        Async do
           request_start = Time.current
           Rails.logger.info "Starting request #{request_number} at #{request_start}"
           
           result = if semaphore
-            # Use semaphore to limit concurrency, but tasks are still created in parallel
+            # Use semaphore to limit concurrency
             semaphore.acquire do
               fetch_from_httpbin(@delay_secs)
             end
@@ -73,13 +72,11 @@ class DelayController < ApplicationController
         end
       end
       
-      Rails.logger.info "Created #{tasks.length} async tasks at #{Time.current}, waiting for completion..."
+      Rails.logger.info "Created #{promises.length} async tasks at #{Time.current}, waiting for completion..."
       
-      # Wait for all tasks to complete
-      results = tasks.map(&:wait)
+      # Wait for all promises to resolve
+      results = promises.map(&:wait)
       total_time = ((Time.current - start_time) * 1000).to_i
-      
-      Rails.logger.info "All requests completed in #{total_time}ms"
 
       render json: {
         total_requests: @num_of_calls,
@@ -89,7 +86,7 @@ class DelayController < ApplicationController
       }
     end
   rescue => e
-    render json: { error: 'Failed to fetch from httpbin' }, status: 500
+    render json: { error: "Failed to fetch from httpbin: #{e.message}" }, status: 500
   end
 
   private
@@ -117,7 +114,7 @@ class DelayController < ApplicationController
     end
   end
 
-  # High-performance HTTP client using Typhoeus adapter
+  # High-performance HTTP client using async-http adapter
   HTTPBIN_URL = ENV['HTTPBIN_URL'] || 'http://httpbin:80'
 
   def self.http_client
@@ -125,24 +122,15 @@ class DelayController < ApplicationController
       url: HTTPBIN_URL,
       headers: { 
         'Connection' => 'keep-alive',
-        'User-Agent' => 'Rails-API/1.0'
+        'User-Agent' => 'Rails-API/1.0',
+        'Accept-Encoding' => 'gzip'
       }
     ) do |f|
       f.request :url_encoded
       f.response :json, content_type: /\bjson$/
-      f.adapter :typhoeus, {
-        # Typhoeus configuration for better performance
-        followlocation: true,          # Correct: follow redirects
-        maxredirs: 3,                  # Correct: max redirects to follow
-        timeout: 30,                   # Correct: total timeout in seconds
-        connecttimeout: 10,            # Correct: connection timeout in seconds
-        # Connection pooling settings
-        maxconnects: 50,               # Correct: max connections in pool
-        # Additional performance settings
-        nosignal: true,                # Disable signal handling for threads
-        accept_encoding: 'gzip',       # Enable gzip compression
-        verbose: false                 # Disable verbose logging
-      }
+      f.options.timeout = 30           # Total timeout in seconds
+      f.options.open_timeout = 10      # Connection timeout in seconds
+      f.adapter :async_http           # Use async-http adapter
     end
   end
 
