@@ -1,8 +1,18 @@
 services:
+  httpbin:
+    image: kennethreitz/httpbin
+    ports:
+      - "4000:80"
+
   node-api:
     build: ./nodejs-api
     ports:
       - "8080:3000"
+    environment:
+      # Inside Docker network, use internal port 80
+      - HTTPBIN_URL=http://httpbin:80
+    depends_on:
+      - httpbin
   
   rails-api:
     build: ./rails-api
@@ -11,3 +21,7 @@ services:
     environment:
       - RAILS_ENV=development
       - SECRET_KEY_BASE=development_secret_key_that_is_long_enough_for_rails_to_be_happy_with_it
+      # Inside Docker network, use internal port 80
+      - HTTPBIN_URL=http://httpbin:80
+    depends_on:
+      - httpbin

@@ -4,8 +4,10 @@ import { z } from 'zod';
 import pLimit from 'p-limit';
 import { zValidator } from '@hono/zod-validator';
 
+const HTTPBIN_URL = process.env.HTTPBIN_URL ?? 'http://httpbin:80';
+
 async function fetchFromHttpBin(delaySecs: number): Promise<unknown> {
-  const response = await fetch(`https://httpbin.org/delay/${delaySecs}`);
+  const response = await fetch(`${HTTPBIN_URL}/delay/${delaySecs}`);
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
