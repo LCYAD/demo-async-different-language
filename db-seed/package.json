@@ -10,11 +10,13 @@
   "scripts": {
     "migrate": "bun run migrate.ts",
     "seed": "bun run seed.ts",
+    "seed-many-offices": "bun run seed_many_offices.ts",
     "clean": "bun run clean.ts",
     "reset": "bun run clean.ts && bun run migrate.ts && bun run seed.ts"
   },
   "type": "module",
   "devDependencies": {
-    "@types/bun": "^1.2.20"
+    "@types/bun": "^1.2.20",
+    "@types/node": "^24.2.1"
   }
 }
