@@ -6,7 +6,7 @@ WORKDIR /usr/src/app
 
 # Install system dependencies
 RUN apt-get update -qq && \
-    apt-get install -y build-essential libcurl4-openssl-dev && \
+    apt-get install -y build-essential libcurl4-openssl-dev default-libmysqlclient-dev pkg-config && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy Gemfile and Gemfile.lock
