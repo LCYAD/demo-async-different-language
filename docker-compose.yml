@@ -23,5 +23,11 @@ services:
       - SECRET_KEY_BASE=development_secret_key_that_is_long_enough_for_rails_to_be_happy_with_it
       # Inside Docker network, use internal port 80
       - HTTPBIN_URL=http://httpbin:80
+      # Database configuration
+      - DB_HOST=host.docker.internal
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=
+      - DB_NAME=test_db
     depends_on:
       - httpbin
