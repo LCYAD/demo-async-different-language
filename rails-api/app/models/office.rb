@@ -9,6 +9,15 @@ class Office < ApplicationRecord
   # Scopes
   scope :ordered, -> { order(created_at: :desc) }
   scope :with_employees, -> { includes(:employees) }
+  # Scopes optimized to resolve N+1 problem
+  scope :with_employees_solved, -> { 
+    left_joins(:employees)
+      .select('offices.*')
+      .select('COUNT(DISTINCT employees.id) as total_employees_count')
+      .select('COUNT(DISTINCT CASE WHEN employees.retired_at IS NULL THEN employees.id END) as active_employees_count')
+      .includes(:employees)
+      .group('offices.id')
+  }
 
   def as_json(options = {})
     super(options.merge(
@@ -23,10 +32,20 @@ class Office < ApplicationRecord
   end
 
   def employee_count
-    employees.size
+    total_employees_count || employees.size
   end
 
   def active_employee_count
-    employees.active.size
+    active_employees_count || employees.active.size
+  end
+
+  private
+
+  def total_employees_count
+    attributes['total_employees_count']&.to_i
+  end
+
+  def active_employees_count
+    attributes['active_employees_count']&.to_i
   end
 end

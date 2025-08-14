@@ -8,7 +8,7 @@ default: &default
   adapter: mysql2
   strict: false
   encoding: utf8mb4
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 10 } %>
   username: <%= ENV.fetch("DB_USERNAME", "root") %>
   password: <%= ENV.fetch("DB_PASSWORD", nil) %>
   host: <%= ENV.fetch("DB_HOST", "127.0.0.1") %>
