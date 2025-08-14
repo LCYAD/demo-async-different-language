@@ -4,11 +4,10 @@ import * as mysql from 'mysql2/promise';
 import { faker } from '@faker-js/faker';
 import { offices, employees } from './schema/schema';
 
-const OFFICE_CONFIGS = [
-  { name: 'small', employeeCount: 20 },
-  { name: 'medium', employeeCount: 2000 },
-  { name: 'large', employeeCount: 20000 }
-] as const;
+// Configuration for many small offices
+const OFFICE_COUNT = 1000;
+const MIN_EMPLOYEES = 20;
+const MAX_EMPLOYEES = 50;
 
 const DEPARTMENTS = [
   'Engineering',
@@ -35,9 +34,13 @@ const POSITIONS = [
   'Executive'
 ] as const;
 
-async function generateOffice(name: string) {
+async function generateOffice() {
+  // Generate a more realistic office name using city names
+  const cityName = faker.location.city();
+  const officeName = `${cityName} Branch`;
+  
   return {
-    name,
+    name: officeName,
     identificationCode: faker.string.alphanumeric(8).toUpperCase(),
   };
 }
@@ -104,30 +107,49 @@ async function main() {
   const db = drizzle(pool);
 
   try {
-    console.log('Starting seed process...');
+    console.log('Starting seed process for many small offices...');
+    console.log(`Target: ${OFFICE_COUNT} offices with ${MIN_EMPLOYEES}-${MAX_EMPLOYEES} employees each`);
 
-    // Create offices
-    for (const config of OFFICE_CONFIGS) {
-      console.log(`Creating ${config.name} office...`);
-      const officeData = await generateOffice(config.name);
-      const [office] = await db.insert(offices).values(officeData).execute();
-      const officeId = office.insertId;
+    // Create offices in batches
+    const OFFICE_BATCH_SIZE = 50;
+    for (let officeIndex = 0; officeIndex < OFFICE_COUNT; officeIndex += OFFICE_BATCH_SIZE) {
+      const currentOfficeBatchSize = Math.min(OFFICE_BATCH_SIZE, OFFICE_COUNT - officeIndex);
+      const officeBatch = await Promise.all(
+        Array.from({ length: currentOfficeBatchSize }, () => generateOffice())
+      );
+      
+      const officeResults = await db.insert(offices).values(officeBatch).execute();
+      const startOfficeId = officeResults[0].insertId;
 
-      // Create employees for this office
-      console.log(`Creating ${config.employeeCount} employees for ${config.name} office...`);
-      const batchSize = 200; // Insert in batches to avoid memory issues
-      for (let i = 0; i < config.employeeCount; i += batchSize) {
-        const currentBatchSize = Math.min(batchSize, config.employeeCount - i);
-        const employeeBatch = await Promise.all(
-          Array.from({ length: currentBatchSize }, () => generateEmployee(officeId))
-        );
-        await db.insert(employees).values(employeeBatch).execute();
-        console.log(`Progress: ${Math.min(i + batchSize, config.employeeCount)}/${config.employeeCount} employees created`);
+      // For each office in the batch, create its employees
+      for (let i = 0; i < currentOfficeBatchSize; i++) {
+        const officeId = startOfficeId + i;
+        const employeeCount = faker.number.int({ min: MIN_EMPLOYEES, max: MAX_EMPLOYEES });
+        
+        // Create employees in smaller batches
+        const EMPLOYEE_BATCH_SIZE = 50;
+        for (let j = 0; j < employeeCount; j += EMPLOYEE_BATCH_SIZE) {
+          const currentBatchSize = Math.min(EMPLOYEE_BATCH_SIZE, employeeCount - j);
+          const employeeBatch = await Promise.all(
+            Array.from({ length: currentBatchSize }, () => generateEmployee(officeId))
+          );
+          await db.insert(employees).values(employeeBatch).execute();
+        }
       }
-      console.log(`Completed ${config.name} office with ${config.employeeCount} employees`);
+
+      console.log(`Progress: Created offices ${officeIndex + 1} to ${officeIndex + currentOfficeBatchSize} of ${OFFICE_COUNT}`);
     }
 
     console.log('Seed completed successfully!');
+    
+    // Print some statistics
+    const [officeRows] = await pool.execute('SELECT COUNT(*) as officeCount FROM offices') as any;
+    const [employeeRows] = await pool.execute('SELECT COUNT(*) as employeeCount FROM employees') as any;
+    console.log('\nFinal Statistics:');
+    console.log(`Total Offices: ${officeRows[0].officeCount}`);
+    console.log(`Total Employees: ${employeeRows[0].employeeCount}`);
+    console.log(`Average Employees per Office: ${Math.round(Number(employeeRows[0].employeeCount) / Number(officeRows[0].officeCount))}`);
+
   } catch (error) {
     console.error('Error during seeding:', error);
     process.exit(1);
