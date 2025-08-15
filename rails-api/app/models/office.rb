@@ -5,6 +5,11 @@ class Office < ApplicationRecord
 
   # Associations
   has_many :employees, dependent: :restrict_with_error
+  # has_many :employees, -> { 
+  #   before_query = -> { sleep(0.005) }  # Simulate database latency
+  #   before_query.call
+  #   all  # Return a relation
+  # }, dependent: :restrict_with_error
 
   # Scopes
   scope :ordered, -> { order(created_at: :desc) }
