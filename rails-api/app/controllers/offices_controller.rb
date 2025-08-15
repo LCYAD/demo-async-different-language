@@ -1,7 +1,9 @@
 class OfficesController < ApplicationController
   def index
     offices = Office.with_employees.ordered
-    render json: offices
+    offices2 = Office.with_employees.ordered
+    offices3 = Office.with_employees.ordered
+    render json: { offices: offices, offices2: offices2, offices3: offices3 }
   end
 
   def show
